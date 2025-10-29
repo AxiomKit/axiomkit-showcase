@@ -1,9 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import {
-  seiAgentContext,
-  seiProvider,
-  initialWalletAddress,
-} from "@/lib/axiom-config";
+import { seiAgentContext, seiProvider, seiWallet } from "@/lib/axiom-config";
 import { groq } from "@ai-sdk/groq";
 import { createAgent, LogLevel } from "@axiomkit/core";
 import { NextRequest } from "next/server";
@@ -45,41 +41,51 @@ export async function POST(req: NextRequest) {
         // Run the agent with user input
         const response = await seiAxiom.run({
           context: seiAgentContext,
-          args: { wallet: initialWalletAddress, userMessage: lastUserMessage },
+          args: {
+            wallet: seiWallet.walletAdress,
+            userMessage: lastUserMessage,
+          },
         });
 
         // Stream the agent's response
         let responseText = "";
 
-        if (response && Array.isArray(response)) {
-          // Find the text output in the response array
-          const textOutput = response.find(
-            (item: any) => item.name === "text" && (item as any).content
+        // Ensure response is an array
+        if (Array.isArray(response)) {
+          // Find all 'text' output items with 'content'
+          const textOutputs = response.filter(
+            (item: any) => item.name === "text" && item.content
           );
-          if (textOutput) {
+
+          // Use the last matching 'text' output, if present
+          if (textOutputs.length > 0) {
+            const lastTextOutput = textOutputs[textOutputs.length - 1] as any;
+
             try {
-              const parsedContent = JSON.parse((textOutput as any).content);
-              responseText =
-                parsedContent.content || (textOutput as any).content;
+              const parsed = JSON.parse(lastTextOutput.content);
+              responseText = parsed.content ?? lastTextOutput.content;
             } catch {
-              responseText = (textOutput as any).content;
+              responseText = lastTextOutput.content;
             }
           } else {
-            // Check for action results that might contain weather data
-            const weatherActionResult = response.find(
-              (item: any) =>
-                item.name === "getWeather" && (item as any).data?.content
-            );
-            if (weatherActionResult) {
-              responseText = (weatherActionResult as any).data.content;
+            // Fallback: Check for action_result with weather data
+            const weatherResult: any = response
+              .filter(
+                (item: any) => item.name === "getWeather" && item.data?.content
+              )
+              .pop();
+            if (weatherResult) {
+              responseText = weatherResult.data.content;
             } else {
-              // Check for any action result with content
-              const actionResult = response.find(
-                (item: any) =>
-                  item.ref === "action_result" && (item as any).data?.content
-              );
+              // Fallback: Any action_result with content
+              const actionResult: any = response
+                .filter(
+                  (item: any) =>
+                    item.ref === "action_result" && item.data?.content
+                )
+                .pop();
               if (actionResult) {
-                responseText = (actionResult as any).data.content;
+                responseText = actionResult.data.content;
               }
             }
           }

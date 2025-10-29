@@ -1,8 +1,8 @@
 import { action, context, provider, validateEnv } from "@axiomkit/core";
 import { AxiomSeiWallet } from "@axiomkit/sei";
 
-import { privateKeyToAccount } from "viem/accounts";
-import { createWalletClient, http, parseUnits, encodeFunctionData } from "viem";
+// import { privateKeyToAccount } from "viem/accounts";
+import { parseUnits, encodeFunctionData } from "viem";
 import * as viemChains from "viem/chains";
 import * as z from "zod";
 
@@ -10,10 +10,11 @@ const env = validateEnv(
   z.object({
     SEI_PRIVATE_KEY: z.string().min(1, "SEI_PRIVATE_KEY is required"),
     SEI_RPC_URL: z.string().min(1, "SEI_RPC_URL is required"),
+    GROQ_API_KEY: z.string().min(1, "GROQ_API_KEY is required"),
   })
 );
 
-const seiWallet = new AxiomSeiWallet({
+export const seiWallet = new AxiomSeiWallet({
   rpcUrl: env.SEI_RPC_URL,
   privateKey: env.SEI_PRIVATE_KEY as `0x${string}`,
   chain: viemChains.seiTestnet,
@@ -27,8 +28,8 @@ type SeiMemory = {
   conversationHistory: string[];
 };
 
-const account = privateKeyToAccount(env.SEI_PRIVATE_KEY as `0x${string}`);
-export const initialWalletAddress = account.address;
+// const account = privateKeyToAccount(env.SEI_PRIVATE_KEY as `0x${string}`);
+// export const initialWalletAddress = account.address;
 
 // X402 Payment  Testnet Configuration Example
 export const X402_CONFIG = {
@@ -41,12 +42,12 @@ export const X402_CONFIG = {
   rpcUrl: "https://evm-rpc-testnet.sei-apis.com",
 };
 
-// Create wallet client for transactions
-const walletClient = createWalletClient({
-  account,
-  chain: viemChains.seiTestnet,
-  transport: http(X402_CONFIG.rpcUrl),
-});
+// Create wallet client for transactions -
+// const walletClient = createWalletClient({
+//   account,
+//   chain: viemChains.seiTestnet,
+//   transport: http(X402_CONFIG.rpcUrl),
+// });
 
 /**
  * Make X402 payment using EIP-3009 transferWithAuthorization
@@ -80,9 +81,12 @@ async function makeX402Payment(
     });
 
     // Send transaction
-    const hash = await walletClient.sendTransaction({
+    const hash = await seiWallet.walletClient.sendTransaction({
       to: X402_CONFIG.assetAddress as `0x${string}`,
       data: transferData,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      account: seiWallet.walletClient.account as any,
+      chain: viemChains.seiTestnet,
     });
 
     return hash;
@@ -174,7 +178,9 @@ When calling actions, always provide complete and valid JSON parameters. Never l
 
 After completing actions, always generate a text output with the results so users can see what happened.
 
-Be friendly and explain blockchain concepts in simple terms when users ask questions.`,
+Be friendly and explain blockchain concepts in simple terms when users ask questions.
+
+`,
 })
   .setOutputs({
     text: {
@@ -216,7 +222,6 @@ Be friendly and explain blockchain concepts in simple terms when users ask quest
           );
 
           return actionResponse(`✅ **Balance Check Complete**
-
 **Wallet:** ${targetAddress}
 **Balance:** ${balance} SEI
 
@@ -385,7 +390,7 @@ You can use this information to:
             payload: {
               txHash: txHash,
               amount: parseUnits(amount, X402_CONFIG.assetDecimals).toString(),
-              from: initialWalletAddress,
+              from: seiWallet.walletAdress,
             },
           };
 
