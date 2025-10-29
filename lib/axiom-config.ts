@@ -212,19 +212,21 @@ Be friendly and explain blockchain concepts in simple terms when users ask quest
           }
 
           const balance = await seiWallet.getERC20Balance();
-
+          const balanceUSDC = await seiWallet.getERC20Balance(
+            X402_CONFIG.assetAddress as `0x${string}`
+          );
           // Update memory with current balance
           memory.balance = parseFloat(balance);
 
           // Add to conversation history
           memory.conversationHistory.push(
-            `Checked balance for ${targetAddress}: ${balance} SEI`
+            `Checked balance for ${targetAddress}: ${balance} SEI ${balanceUSDC} USDC`
           );
 
           return actionResponse(`✅ **Balance Check Complete**
 **Wallet:** ${targetAddress}
 **Balance:** ${balance} SEI
-
+**Balance:** ${balanceUSDC} USDC
 This is your current SEI token balance on the Sei testnet. You can use this balance to make transfers or check your account status.`);
         } catch (error) {
           const errorMsg = `Error: Failed to get balance. ${
